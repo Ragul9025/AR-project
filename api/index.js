@@ -254,22 +254,28 @@ app.get('/api/artworks/code/:code', async (req, res) => {
   }
 });
 
-// API: Add new artwork (Protected)
-app.post('/api/artworks', requireAdminAuth, upload.fields([
-  { name: 'image', maxCount: 1 },
-  { name: 'video', maxCount: 1 },
-  { name: 'target', maxCount: 1 }
-]), async (req, res) => {
+// API: Upload a single file (Protected)
+app.post('/api/upload', requireAdminAuth, upload.single('file'), async (req, res) => {
   try {
-    const { title, artist, description } = req.body;
-    const files = req.files;
-
-    if (!title || !artist || !description) {
-      return res.status(400).json({ error: 'Missing required text fields.' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
     }
+    const type = req.query.type || 'temp'; // 'images', 'targets', 'videos'
+    const fileUrl = await uploadFile(req.file, type);
+    res.json({ url: fileUrl });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: error.message || 'Upload failed.' });
+  }
+});
 
-    if (!files || !files.image || !files.video || !files.target) {
-      return res.status(400).json({ error: 'Missing required files (Image, Video, or .mind Target).' });
+// API: Add new artwork (Protected, JSON payload)
+app.post('/api/artworks', requireAdminAuth, async (req, res) => {
+  try {
+    const { title, artist, description, imageUrl, targetUrl, videoUrl } = req.body;
+
+    if (!title || !artist || !description || !imageUrl || !targetUrl || !videoUrl) {
+      return res.status(400).json({ error: 'Missing required fields.' });
     }
 
     let artworks = await getArtworks();
@@ -279,11 +285,6 @@ app.post('/api/artworks', requireAdminAuth, upload.fields([
     while (artworks.some(art => art.code === code)) {
       code = generateShortCode();
     }
-
-    // Upload files
-    const imageUrl = await uploadFile(files.image[0], 'images');
-    const targetUrl = await uploadFile(files.target[0], 'targets');
-    const videoUrl = await uploadFile(files.video[0], 'videos');
 
     const newArtwork = {
       id: Date.now().toString(),

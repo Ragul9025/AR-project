@@ -228,23 +228,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper to upload a single file
+  async function uploadSingleFile(file, type) {
+    const fileData = new FormData();
+    fileData.append('file', file);
+
+    const response = await fetch(`/api/upload?type=${type}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: fileData
+    });
+
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error('Unauthorized');
+    }
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || `Failed to upload ${type}`);
+    }
+
+    const data = await response.json();
+    return data.url;
+  }
+
   // Submit form
   uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const titleVal = document.getElementById('title').value.trim();
+    const artistVal = document.getElementById('artist').value.trim();
+    const descVal = document.getElementById('description').value.trim();
+
+    const imgFile = imageInput.files[0];
+    const targetFile = targetInput.files[0];
+    const vidFile = videoInput.files[0];
+
+    if (!imgFile || !targetFile || !vidFile) {
+      showToast('Please select all required files.', true);
+      return;
+    }
+
     // Show loading state
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading files & creating experience...';
-
-    const formData = new FormData(uploadForm);
 
     try {
+      // 1. Upload Target Image
+      submitBtn.textContent = '1/4: Uploading target image...';
+      const imageUrl = await uploadSingleFile(imgFile, 'images');
+
+      // 2. Upload Target .mind File
+      submitBtn.textContent = '2/4: Uploading target .mind file...';
+      const targetUrl = await uploadSingleFile(targetFile, 'targets');
+
+      // 3. Upload Video
+      submitBtn.textContent = '3/4: Uploading overlay video (this may take a moment)...';
+      const videoUrl = await uploadSingleFile(vidFile, 'videos');
+
+      // 4. Save Artwork Metadata
+      submitBtn.textContent = '4/4: Creating AR experience...';
       const response = await fetch('/api/artworks', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: formData
+        body: JSON.stringify({
+          title: titleVal,
+          artist: artistVal,
+          description: descVal,
+          imageUrl,
+          targetUrl,
+          videoUrl
+        })
       });
 
       if (response.status === 401) {
@@ -254,11 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload artwork');
+        throw new Error(errorData.error || 'Failed to create artwork');
       }
 
       const newArtwork = await response.json();
-      showToast(`"${newArtwork.title}" uploaded successfully!`);
+      showToast(`"${newArtwork.title}" created successfully!`);
       
       // Reset form & file name indicators
       uploadForm.reset();
@@ -269,8 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Refresh list
       fetchArtworks();
     } catch (error) {
-      console.error('Error uploading artwork:', error);
-      showToast(error.message || 'Error uploading artwork.', true);
+      console.error('Error creating artwork:', error);
+      if (error.message !== 'Unauthorized') {
+        showToast(error.message || 'Error creating artwork.', true);
+      }
     } finally {
       // Reset button state
       submitBtn.disabled = false;
