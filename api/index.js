@@ -163,6 +163,9 @@ async function uploadFile(file, folderName) {
     });
     return blob.url;
   } else {
+    if (process.env.VERCEL) {
+      throw new Error('Vercel Blob storage is not configured. Please connect a Blob store in the Vercel Storage dashboard and redeploy.');
+    }
     const destDir = path.join(__dirname, '..', 'public', 'uploads', folderName);
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
