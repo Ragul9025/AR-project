@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - AuraAR</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .login-container {
+      max-width: 400px;
+      width: 100%;
+      padding: 2.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--glass-glow);
+      text-align: center;
+    }
+    .login-logo {
+      margin-bottom: 2rem;
+    }
+    .login-title {
+      font-family: var(--font-title);
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    .login-subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="login-logo">
+      <a href="/" class="logo" style="display: inline-flex; justify-content: center;">
+        Aura<span>AR</span>
+      </a>
+    </div>
+    
+    <h2 class="login-title">Admin Access</h2>
+    <p class="login-subtitle">Please enter your administrator password to continue.</p>
+    
+    <form id="loginForm">
+      <div class="form-group" style="text-align: left;">
+        <label for="password">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required autofocus>
+      </div>
+      
+      <button type="submit" class="submit-btn" id="loginBtn" style="margin-top: 1rem;">
+        Log In
+      </button>
+    </form>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span id="toastMessage">Notification message</span>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const loginForm = document.getElementById('loginForm');
+      const loginBtn = document.getElementById('loginBtn');
+      const passwordInput = document.getElementById('password');
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+
+      // Redirect to admin if already logged in
+      if (localStorage.getItem('aura_admin_token')) {
+        window.location.href = '/admin.html';
+      }
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Verifying...';
+
+        const password = passwordInput.value;
+
+        try {
+          const response = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password })
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            localStorage.setItem('aura_admin_token', result.token);
+            showToast('Access granted. Redirecting...');
+            setTimeout(() => {
+              window.location.href = '/admin.html';
+            }, 1000);
+          } else {
+            throw new Error(result.error || 'Login failed');
+          }
+        } catch (error) {
+          showToast(error.message || 'Incorrect password', true);
+          passwordInput.value = '';
+          passwordInput.focus();
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Log In';
+        }
+      });
+
+      function showToast(message, isError = false) {
+        toastMessage.textContent = message;
+        if (isError) {
+          toast.classList.add('error');
+        } else {
+          toast.classList.remove('error');
+        }
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 4000);
+      }
+    });
+  </script>
+</body>
+</html>

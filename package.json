@@ -1,0 +1,26 @@
+{
+  "name": "artivive-webar",
+  "version": "1.0.0",
+  "description": "An Artivive-like WebAR application using MindAR and Express.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "keywords": [
+    "webar",
+    "mindar",
+    "augmented-reality",
+    "express",
+    "artivive"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/blob": "^2.5.0",
+    "@vercel/kv": "^3.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

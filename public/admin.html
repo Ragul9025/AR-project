@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - AuraAR</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- A-Frame/MindAR not needed in admin, but we need QRCode library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    /* Print styles for labels */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #labelModal, #labelModal * {
+        visibility: visible;
+      }
+      #labelModal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: auto;
+        background: white !important;
+        color: black !important;
+        display: block !important;
+      }
+      .modal-close, .print-actions {
+        display: none !important;
+      }
+      .label-print-box {
+        border: 2px solid #000 !important;
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+        margin: 20px auto;
+        width: 4.5in;
+        height: 6.25in;
+        padding: 30px !important;
+      }
+      .label-title {
+        color: black !important;
+      }
+      .label-artist {
+        color: #555 !important;
+      }
+      .label-code-badge {
+        border: 2px solid black !important;
+        color: black !important;
+        background: transparent !important;
+      }
+    }
+
+    .label-print-box {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      max-width: 400px;
+      margin: 0 auto;
+      text-align: center;
+      box-shadow: var(--glass-glow);
+    }
+    .label-qr-container {
+      background: white;
+      padding: 1rem;
+      border-radius: 12px;
+      display: inline-block;
+      margin: 1.5rem 0;
+    }
+    .label-qr-container img {
+      display: block;
+      margin: 0 auto;
+    }
+    .label-title {
+      font-family: var(--font-title);
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+    .label-artist {
+      color: var(--accent-cyan);
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    .label-code-badge {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border: 1px dashed var(--accent-purple);
+      color: var(--text-primary);
+      background: rgba(157, 78, 221, 0.1);
+      font-weight: 700;
+      font-size: 1rem;
+      border-radius: 8px;
+      letter-spacing: 1px;
+      margin-bottom: 1.5rem;
+    }
+    .label-instructions {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .print-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <a href="/" class="logo">
+      Aura<span>AR</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/" class="nav-btn secondary">Gallery</a>
+      <button class="nav-btn secondary" id="logoutBtn">Logout</button>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <div class="admin-header">
+      <h2>Admin Dashboard</h2>
+      <p style="color: var(--text-secondary);">Manage your AR artworks and generate printable labels for physical display.</p>
+    </div>
+
+    <div class="dashboard-layout">
+      <!-- Upload Form (Left Column) -->
+      <section class="admin-panel">
+        <h3>
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="var(--accent-purple)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Upload New Artwork
+        </h3>
+
+        <!-- Interactive AR Guide -->
+        <div class="guide-card">
+          <h4>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            How to create a Target (.mind) File
+          </h4>
+          <ol>
+            <li>Go to the official <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile/" target="_blank" rel="noopener">MindAR Web Compiler</a>.</li>
+            <li>Upload your <strong>Target Image</strong> (which users will scan).</li>
+            <li>Wait for feature point extraction to complete, then click <strong>Export</strong>.</li>
+            <li>You will get a <code>.mind</code> file. Upload it below!</li>
+          </ol>
+        </div>
+
+
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="title">Artwork Title</label>
+            <input type="text" id="title" name="title" class="form-input" placeholder="e.g., Starry Night" required>
+          </div>
+
+          <div class="form-group">
+            <label for="artist">Artist Name</label>
+            <input type="text" id="artist" name="artist" class="form-input" placeholder="e.g., Vincent van Gogh" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" class="form-textarea" placeholder="Describe the artwork and the AR experience..." required></textarea>
+          </div>
+
+          <!-- File Uploads -->
+          <div class="form-group">
+            <label>1. Target Image (JPG, PNG)</label>
+            <div class="file-upload-wrapper">
+              <div class="file-upload-btn" id="imageUploadBtn">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                  <polyline points="21 15 16 10 5 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                </svg>
+                <span>Click or drag image file</span>
+                <span class="file-name" id="imageFileName"></span>
+              </div>
+              <input type="file" id="imageInput" name="image" class="file-input" accept="image/*" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>2. Target .mind File (Compiled AR Target)</label>
+            <div class="file-upload-wrapper">
+              <div class="file-upload-btn" id="targetUploadBtn">
+                <svg viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13" fill="none" stroke="currentColor" stroke-width="2"></line>
+                  <line x1="16" y1="17" x2="8" y2="17" fill="none" stroke="currentColor" stroke-width="2"></line>
+                  <polyline points="10 9 9 9 8 9" fill="none" stroke="currentColor" stroke-width="2"></polyline>
+                </svg>
+                <span>Click or drag .mind file</span>
+                <span class="file-name" id="targetFileName"></span>
+              </div>
+              <input type="file" id="targetInput" name="target" class="file-input" accept=".mind" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>3. AR Overlay Video (MP4)</label>
+            <div class="file-upload-wrapper">
+              <div class="file-upload-btn" id="videoUploadBtn">
+                <svg viewBox="0 0 24 24">
+                  <polygon points="23 7 16 12 23 17 23 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polygon>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                </svg>
+                <span>Click or drag video file</span>
+                <span class="file-name" id="videoFileName"></span>
+              </div>
+              <input type="file" id="videoInput" name="video" class="file-input" accept="video/mp4" required>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn">
+            Create AR Experience
+          </button>
+        </form>
+      </section>
+
+      <!-- Artworks List (Right Column) -->
+      <section class="admin-panel">
+        <h3>
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="var(--accent-cyan)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          Existing Artworks
+        </h3>
+        <div class="admin-artwork-list" id="adminArtworkList">
+          <!-- Loader -->
+          <div class="loader-container">
+            <div class="spinner"></div>
+            <p>Fetching artwork list...</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Label Modal -->
+  <div class="modal" id="labelModal">
+    <div class="modal-content" style="max-width: 480px;">
+      <button class="modal-close" id="closeLabelBtn" aria-label="Close modal">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div class="label-print-box">
+          <h3 class="label-title" id="lblTitle">Artwork Title</h3>
+          <p class="label-artist" id="lblArtist">By Artist Name</p>
+          <div class="label-qr-container" id="lblQr"></div>
+          <div>
+            <span class="label-code-badge" id="lblCode">CODE</span>
+          </div>
+          <p class="label-instructions">
+            <strong>Scan to view in AR:</strong><br>
+            1. Scan the QR code with your phone camera.<br>
+            2. Or go to AuraAR and enter the 4-character code.<br>
+            3. Point your camera at the physical artwork.
+          </p>
+        </div>
+        <div class="print-actions">
+          <button class="nav-btn primary" onclick="window.print()">Print Label</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span id="toastMessage">Notification message</span>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

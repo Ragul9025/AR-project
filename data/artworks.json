@@ -1,0 +1,35 @@
+[
+  {
+    "id": "sample-artwork",
+    "code": "PORT",
+    "title": "Cyberpunk Portal (Sample)",
+    "artist": "MindAR Team & Blender",
+    "description": "A beautiful demo showcasing a futuristic portal. Scan the sample card to see the video play in augmented reality!",
+    "imageUrl": "/uploads/images/sample.png",
+    "targetUrl": "/uploads/targets/sample.mind",
+    "videoUrl": "/uploads/videos/sample.mp4",
+    "createdAt": "2026-06-28T16:40:54.695Z"
+  },
+  {
+    "id": "1782666554928",
+    "code": "OBIT",
+    "title": "obito ",
+    "artist": "ragul",
+    "description": "dddd",
+    "imageUrl": "/uploads/images/1782666554861-977293440.png",
+    "targetUrl": "/uploads/targets/1782666554862-547656864.mind",
+    "videoUrl": "/uploads/videos/1782666554868-354956529.mp4",
+    "createdAt": "2026-06-28T17:09:14.928Z"
+  },
+  {
+    "id": "1782671489521",
+    "code": "8Q25",
+    "title": "gojo",
+    "artist": "satro",
+    "description": "sss",
+    "imageUrl": "/uploads/images/1782671489472-845097615.jpg",
+    "targetUrl": "/uploads/targets/1782671489483-453438768.mind",
+    "videoUrl": "/uploads/videos/1782671489490-688139929.mp4",
+    "createdAt": "2026-06-28T18:31:29.521Z"
+  }
+]

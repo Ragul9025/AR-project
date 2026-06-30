@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Scanner - AuraAR</title>
+  <link rel="stylesheet" href="/css/style.css">
+  
+  <!-- A-Frame and MindAR CDN -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    /* Absolute overlay for A-Frame scene */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    .a-enter-vr {
+      display: none !important;
+    }
+    /* Style local to scanner to ensure full screen camera */
+    #scannerSceneContainer {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    /* Loading overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      transition: opacity 0.5s ease;
+    }
+
+    /* Fullscreen Video Overlay */
+    #fullscreenVideoContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #fullscreenVideoContainer.show {
+      display: flex;
+      opacity: 1;
+    }
+    #videoWrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #fullscreenVideo {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .video-controls {
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      display: flex;
+      gap: 1rem;
+      z-index: 3100;
+    }
+    .control-btn {
+      background: rgba(10, 8, 19, 0.8);
+      border: 1px solid var(--panel-border);
+      color: var(--text-primary);
+      padding: 0.75rem 1.5rem;
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    .control-btn.close-btn-style:hover {
+      background: var(--accent-pink);
+      border-color: var(--accent-pink);
+      transform: translateY(-2px);
+    }
+    
+    /* Play/Pause Button in the center */
+    .play-pause-center-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(10, 8, 19, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 3050;
+      pointer-events: none; /* Clicking the wrapper handles play/pause */
+      opacity: 0;
+    }
+    .play-pause-center-btn.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+    
+    /* Video End Overlay */
+    .video-end-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 8, 19, 0.85);
+      backdrop-filter: blur(15px);
+      z-index: 3080;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .video-end-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+    .video-end-overlay .end-title {
+      font-family: var(--font-title);
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      margin: 0 1rem;
+      letter-spacing: -0.5px;
+    }
+    .video-end-overlay .end-actions {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .end-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.85rem 2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+    }
+    .end-btn.replay-btn {
+      background: linear-gradient(135deg, var(--accent-purple), #7b2cbf);
+      color: white;
+      box-shadow: 0 4px 15px rgba(157, 78, 221, 0.4);
+    }
+    .end-btn.replay-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(157, 78, 221, 0.6);
+    }
+    .end-btn.close-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: var(--text-primary);
+    }
+    .end-btn.close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--text-secondary);
+      transform: translateY(-2px);
+    }
+  </style>
+
+  <script>
+    // Global variable to hold video element and state
+    let arVideoElement = null;
+    let isVideoPlaying = false;
+    let scanCooldown = false;
+
+    // Register fullscreen change event listeners to dynamically update buttons
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+    // Custom A-Frame component to handle video playback based on tracking events
+    AFRAME.registerComponent('video-handler', {
+      init: function () {
+        this.el.addEventListener('targetFound', () => {
+          console.log('Target found - triggering fullscreen video');
+          if (!scanCooldown) {
+            triggerFullscreenVideo();
+          }
+        });
+      }
+    });
+
+    function triggerFullscreenVideo() {
+      if (isVideoPlaying) return;
+      
+      const container = document.getElementById('fullscreenVideoContainer');
+      const video = document.getElementById('fullscreenVideo');
+      const sceneContainer = document.getElementById('scannerSceneContainer');
+      
+      if (!container || !video) return;
+
+      isVideoPlaying = true;
+      
+      // Update UI instructions
+      const instructions = document.querySelector('.ar-scanner-instructions');
+      if (instructions) {
+        instructions.textContent = 'Artwork Detected';
+        instructions.style.borderColor = 'var(--accent-cyan)';
+        instructions.style.color = 'var(--accent-cyan)';
+      }
+
+      // Hide the AR scanner scene to focus on the video and prevent background camera rendering
+      if (sceneContainer) {
+        sceneContainer.style.display = 'none';
+      }
+
+      // Show container
+      container.style.display = 'flex';
+      // Force reflow
+      container.offsetHeight;
+      container.classList.add('show');
+
+      // Auto-request browser fullscreen (if permitted by browser policy)
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(err => {
+          console.warn("Auto-fullscreen blocked by browser security. Will trigger on user tap:", err);
+        });
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (container.mozRequestFullScreen) {
+        container.mozRequestFullScreen();
+      } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+      }
+
+      // Play video with audio (unmuted)
+      video.muted = false;
+      video.play().catch(err => {
+        console.warn('Autoplay with audio blocked, playing muted as fallback:', err);
+        video.muted = true;
+        video.play();
+      });
+    }
+
+    function toggleBrowserFullscreen() {
+      const container = document.getElementById('fullscreenVideoContainer');
+      if (!container) return;
+
+      const isFullscreen = document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement;
+
+      if (!isFullscreen) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(err => console.error("Error entering fullscreen:", err));
+        } else if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+          container.mozRequestFullScreen();
+        } else if (container.msRequestFullscreen) {
+          container.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    function updateFullscreenButton() {
+      const btn = document.getElementById('fullscreenToggleBtn');
+      if (!btn) return;
+      
+      const isFullscreen = document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement;
+                           
+      if (isFullscreen) {
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"></path>
+          </svg>
+          Exit Fullscreen
+        `;
+      } else {
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path>
+          </svg>
+          Fullscreen
+        `;
+      }
+    }
+
+    function togglePlayPause() {
+      const video = document.getElementById('fullscreenVideo');
+      const endOverlay = document.getElementById('videoEndOverlay');
+      const container = document.getElementById('fullscreenVideoContainer');
+      
+      if (!video) return;
+      if (endOverlay && endOverlay.classList.contains('show')) return;
+
+      // Request fullscreen on tap if it was blocked initially (due to user gesture requirement)
+      const isFullscreen = document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement;
+      if (!isFullscreen && container) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(() => {});
+        }
+      }
+
+      if (video.paused) {
+        video.play().catch(err => {
+          console.error("Error playing video:", err);
+        });
+      } else {
+        video.pause();
+      }
+    }
+
+    function replayFullscreenVideo() {
+      const video = document.getElementById('fullscreenVideo');
+      const endOverlay = document.getElementById('videoEndOverlay');
+      const playBtn = document.getElementById('playPauseCenterBtn');
+
+      if (endOverlay) {
+        endOverlay.classList.remove('show');
+        setTimeout(() => {
+          endOverlay.style.display = 'none';
+        }, 400);
+      }
+      
+      if (playBtn) {
+        playBtn.classList.remove('visible');
+      }
+
+      if (video) {
+        video.currentTime = 0;
+        video.play().catch(err => {
+          console.error("Error replaying video:", err);
+        });
+      }
+    }
+
+    function closeFullscreenVideo() {
+      const container = document.getElementById('fullscreenVideoContainer');
+      const video = document.getElementById('fullscreenVideo');
+      const endOverlay = document.getElementById('videoEndOverlay');
+      const playBtn = document.getElementById('playPauseCenterBtn');
+      const sceneContainer = document.getElementById('scannerSceneContainer');
+      
+      if (!container || !video) return;
+
+      isVideoPlaying = false;
+      video.pause();
+      video.currentTime = 0;
+      
+      scanCooldown = true;
+
+      // Exit browser fullscreen if active
+      const isFullscreen = document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement;
+      if (isFullscreen) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+
+      if (endOverlay) {
+        endOverlay.classList.remove('show');
+      }
+      if (playBtn) {
+        playBtn.classList.remove('visible');
+      }
+      container.classList.remove('show');
+      
+      setTimeout(() => {
+        container.style.display = 'none';
+        if (endOverlay) {
+          endOverlay.style.display = 'none';
+        }
+        // Show the AR scanner scene again to resume scanning
+        if (sceneContainer) {
+          sceneContainer.style.display = 'block';
+        }
+      }, 400);
+
+      // Reset UI instructions with scanning paused notice to allow user to move away
+      const instructions = document.querySelector('.ar-scanner-instructions');
+      if (instructions) {
+        instructions.textContent = 'Scanning paused...';
+        instructions.style.borderColor = 'var(--accent-pink)';
+        instructions.style.color = 'var(--accent-pink)';
+        
+        setTimeout(() => {
+          scanCooldown = false;
+          if (!isVideoPlaying) {
+            instructions.textContent = 'Align artwork within the frame';
+            instructions.style.borderColor = 'var(--panel-border)';
+            instructions.style.color = 'var(--text-primary)';
+          }
+        }, 3000);
+      } else {
+        setTimeout(() => {
+          scanCooldown = false;
+        }, 3000);
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <h2 style="font-family: var(--font-title); margin-bottom: 0.5rem;">Starting AR Engine</h2>
+    <p style="color: var(--text-secondary); font-size: 0.9rem;">Please allow camera access if prompted...</p>
+  </div>
+
+  <!-- UI Overlays -->
+  <div class="ar-overlay-ui">
+    <!-- Back button -->
+    <a href="/" class="ar-btn-back">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Exit Scanner
+    </a>
+
+    <!-- Scanner Reticle Frame -->
+    <div class="ar-scanner-frame" id="scannerReticle">
+      <div class="ar-scanner-corners"></div>
+      <div class="ar-scanner-corners-bottom"></div>
+      <div class="ar-scanner-line"></div>
+      <div class="ar-scanner-instructions">Align artwork within the frame</div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Video Overlay (Triggers on scan) -->
+  <div id="fullscreenVideoContainer">
+    <div class="video-controls">
+      <button id="fullscreenToggleBtn" class="control-btn" onclick="toggleBrowserFullscreen()">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path>
+        </svg>
+        Fullscreen
+      </button>
+      <button class="control-btn close-btn-style" onclick="closeFullscreenVideo()">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        Exit Screen
+      </button>
+    </div>
+    <div id="videoWrapper" onclick="togglePlayPause()">
+      <video id="fullscreenVideo" playsinline></video>
+      
+      <!-- Big Play/Pause Button in the center (visible when paused) -->
+      <button id="playPauseCenterBtn" class="play-pause-center-btn">
+        <svg id="playIcon" viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </button>
+
+      <!-- Video End Overlay (visible when video ends) -->
+      <div id="videoEndOverlay" class="video-end-overlay" onclick="event.stopPropagation()">
+        <h3 class="end-title">Artwork Experience Completed</h3>
+        <div class="end-actions">
+          <button class="end-btn replay-btn" onclick="replayFullscreenVideo()">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            Replay
+          </button>
+          <button class="end-btn close-btn" onclick="closeFullscreenVideo()">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-Frame Scene Container -->
+  <div id="scannerSceneContainer"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const artworkId = urlParams.get('id');
+      const container = document.getElementById('scannerSceneContainer');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const fullscreenVideo = document.getElementById('fullscreenVideo');
+
+      if (!artworkId) {
+        alert('No artwork ID specified. Returning to gallery.');
+        window.location.href = '/';
+        return;
+      }
+
+      try {
+        // Fetch artwork details
+        const response = await fetch(`/api/artworks/${artworkId}`);
+        if (!response.ok) {
+          throw new Error('Artwork not found');
+        }
+        const artwork = await response.json();
+        if (!artwork) throw new Error('Artwork data empty');
+
+        // Set video source for the fullscreen player
+        fullscreenVideo.src = artwork.videoUrl;
+
+        // Listen for video end to show replay / close overlay
+        fullscreenVideo.addEventListener('ended', () => {
+          const endOverlay = document.getElementById('videoEndOverlay');
+          const playBtn = document.getElementById('playPauseCenterBtn');
+          if (playBtn) playBtn.classList.remove('visible');
+          if (endOverlay) {
+            endOverlay.style.display = 'flex';
+            // Force reflow
+            endOverlay.offsetHeight;
+            endOverlay.classList.add('show');
+          }
+        });
+
+        // Listen to play/pause events to update UI
+        fullscreenVideo.addEventListener('play', () => {
+          const playBtn = document.getElementById('playPauseCenterBtn');
+          if (playBtn) playBtn.classList.remove('visible');
+        });
+
+        fullscreenVideo.addEventListener('pause', () => {
+          const playBtn = document.getElementById('playPauseCenterBtn');
+          const endOverlay = document.getElementById('videoEndOverlay');
+          // Only show center play button if the video is not ended
+          if (playBtn && (!endOverlay || !endOverlay.classList.contains('show'))) {
+            playBtn.classList.add('visible');
+          }
+        });
+
+        // Inject the A-Frame Scene (Only contains tracking, no 3D video rendering)
+        container.innerHTML = `
+          <a-scene 
+            mindar-image="imageTargetSrc: ${artwork.targetUrl}; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiError: yes; warmupTolerance: 5; missTolerance: 5;" 
+            embedded 
+            vr-mode-ui="enabled: false" 
+            device-orientation-permission-ui="enabled: false"
+            renderer="colorManagement: true, physicallyCorrectLights: true"
+          >
+            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+            <!-- Target entity with video-handler to trigger full screen playback -->
+            <a-entity mindar-image-target="targetIndex: 0" video-handler></a-entity>
+          </a-scene>
+        `;
+
+        const sceneEl = document.querySelector('a-scene');
+
+        // Hide loading screen when AR engine is ready
+        sceneEl.addEventListener('arReady', () => {
+          console.log('MindAR Engine is ready');
+          loadingOverlay.style.opacity = 0;
+          setTimeout(() => {
+            loadingOverlay.style.display = 'none';
+          }, 500);
+        });
+
+        sceneEl.addEventListener('arError', (event) => {
+          console.error('AR Engine Error:', event);
+          alert('Failed to initialize the camera or AR engine. Please make sure you have granted camera permissions.');
+          window.location.href = '/';
+        });
+
+      } catch (error) {
+        console.error('Error starting scanner:', error);
+        alert('Failed to load artwork. Returning to gallery.');
+        window.location.href = '/';
+      }
+    });
+  </script>
+</body>
+</html>
