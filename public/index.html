@@ -135,8 +135,8 @@
       <p>AuraAR connects physical paintings, prints, and galleries to immersive digital animations. Enter an artwork code or scan its QR code to begin.</p>
     </section>
 
-    <!-- Code Input Card -->
-    <section style="z-index: 10; position: relative;">
+    <!-- Code Input Card (Manual) -->
+    <section id="manualCodeSection" style="z-index: 10; position: relative;">
       <div class="landing-card">
         <h2 style="font-family: var(--font-title); font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem;">Enter Artwork Code</h2>
         <p style="color: var(--text-secondary); font-size: 0.9rem;">Look for the 4-character code on the label next to the physical artwork.</p>
@@ -157,6 +157,24 @@
             Start AR Scanner
           </button>
         </form>
+      </div>
+    </section>
+
+    <!-- Direct Scan Card (Activated when ?code=XXXX is passed in URL) -->
+    <section id="directScanSection" style="display: none; z-index: 10; position: relative;">
+      <div class="landing-card">
+        <h2 style="font-family: var(--font-title); font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem;" id="directHeader">Artwork Found</h2>
+        <div id="directLoading" style="margin: 2rem 0;">
+          <div class="spinner" style="margin: 0 auto; width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--accent-cyan); border-radius: 50; animation: spin 1s linear infinite;"></div>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">Loading artwork details...</p>
+        </div>
+        <div id="directContent" style="display: none; margin: 2rem 0;">
+          <p style="color: var(--accent-cyan); font-family: var(--font-title); font-size: 1.4rem; font-weight: 800; margin-bottom: 0.25rem;" id="directArtworkTitle"></p>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;" id="directArtist"></p>
+        </div>
+        <button class="submit-btn" id="directScanBtn" style="display: none;">
+          Launch AR Scanner
+        </button>
       </div>
     </section>
 

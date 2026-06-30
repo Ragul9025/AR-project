@@ -1,4 +1,61 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const codeParam = urlParams.get('code');
+
+  if (codeParam) {
+    const manualCodeSection = document.getElementById('manualCodeSection');
+    const directScanSection = document.getElementById('directScanSection');
+    const directLoading = document.getElementById('directLoading');
+    const directContent = document.getElementById('directContent');
+    const directArtworkTitle = document.getElementById('directArtworkTitle');
+    const directArtist = document.getElementById('directArtist');
+    const directScanBtn = document.getElementById('directScanBtn');
+    const directHeader = document.getElementById('directHeader');
+
+    if (manualCodeSection && directScanSection) {
+      manualCodeSection.style.display = 'none';
+      directScanSection.style.display = 'block';
+
+      const code = codeParam.trim().toUpperCase();
+
+      fetch(`/api/artworks/code/${code}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Artwork not found');
+          }
+          return response.json();
+        })
+        .then(artwork => {
+          if (directLoading) directLoading.style.display = 'none';
+          if (directArtworkTitle) {
+            directArtworkTitle.textContent = artwork.title;
+            directArtworkTitle.style.color = 'var(--accent-cyan)';
+          }
+          if (directArtist) directArtist.textContent = `by ${artwork.artist}`;
+          if (directContent) directContent.style.display = 'block';
+          if (directScanBtn) {
+            directScanBtn.style.display = 'block';
+            directScanBtn.addEventListener('click', () => {
+              directScanBtn.disabled = true;
+              directScanBtn.textContent = 'Launching Scanner...';
+              window.location.href = `/scan.html?id=${artwork.id}`;
+            });
+          }
+        })
+        .catch(err => {
+          if (directLoading) directLoading.style.display = 'none';
+          if (directHeader) directHeader.textContent = 'Error';
+          if (directArtworkTitle) {
+            directArtworkTitle.textContent = 'Artwork Not Found';
+            directArtworkTitle.style.color = 'var(--accent-pink)';
+          }
+          if (directArtist) directArtist.textContent = 'The code in this link is invalid or the artwork was deleted.';
+          if (directContent) directContent.style.display = 'block';
+        });
+      return;
+    }
+  }
+
   const codeForm = document.getElementById('codeForm');
   const charInputs = document.querySelectorAll('.code-char-input');
   const startBtn = document.getElementById('startBtn');

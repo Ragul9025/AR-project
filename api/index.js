@@ -7,7 +7,7 @@ const cors = require('cors');
 const app = express();
 
 // Configuration (uses environment variables with local fallbacks)
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ragul@2510$';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'aura-admin-secure-token-2026';
 
 const useVercelKV = !!process.env.KV_URL;
