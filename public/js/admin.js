@@ -21,6 +21,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const lblQr = document.getElementById('lblQr');
   const lblCode = document.getElementById('lblCode');
 
+  // Edit Modal Elements
+  const editModal = document.getElementById('editModal');
+  const closeEditBtn = document.getElementById('closeEditBtn');
+  const editForm = document.getElementById('editForm');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const editSubmitBtn = document.getElementById('editSubmitBtn');
+  const editArtworkId = document.getElementById('editArtworkId');
+  const editTitle = document.getElementById('editTitle');
+  const editArtist = document.getElementById('editArtist');
+  const editDescription = document.getElementById('editDescription');
+  
+  const editImageInput = document.getElementById('editImageInput');
+  const editImageFileName = document.getElementById('editImageFileName');
+  const editTargetInput = document.getElementById('editTargetInput');
+  const editTargetFileName = document.getElementById('editTargetFileName');
+  const editVideoInput = document.getElementById('editVideoInput');
+  const editVideoFileName = document.getElementById('editVideoFileName');
+
+  const currentImageInfo = document.getElementById('currentImageInfo');
+  const currentTargetInfo = document.getElementById('currentTargetInfo');
+  const currentVideoInfo = document.getElementById('currentVideoInfo');
+
   // File inputs and their display elements
   const imageInput = document.getElementById('imageInput');
   const imageFileName = document.getElementById('imageFileName');
@@ -51,6 +73,22 @@ document.addEventListener('DOMContentLoaded', () => {
   videoInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     videoFileName.textContent = file ? file.name : '';
+  });
+
+  // Edit file inputs change displays
+  editImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    editImageFileName.textContent = file ? file.name : '';
+  });
+
+  editTargetInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    editTargetFileName.textContent = file ? file.name : '';
+  });
+
+  editVideoInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    editVideoFileName.textContent = file ? file.name : '';
   });
 
   // Fetch and display artworks
@@ -125,6 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <rect x="3" y="14" width="7" height="7"></rect>
             </svg>
           </button>
+          <button class="admin-btn edit-btn" data-id="${art.id}" title="Edit Artwork" style="border-color: rgba(157, 78, 221, 0.2); color: var(--accent-purple); margin-right: 0.5rem;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
           ${deleteBtnHtml}
         </div>
       `;
@@ -145,6 +189,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.getAttribute('data-id');
         openLabelModal(id);
+      });
+    });
+
+    // Add Edit artwork event listeners
+    document.querySelectorAll('.admin-btn.edit-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        openEditModal(id);
       });
     });
   }
@@ -186,6 +238,177 @@ document.addEventListener('DOMContentLoaded', () => {
   labelModal.addEventListener('click', (e) => {
     if (e.target === labelModal) {
       closeLabelModal();
+    }
+  });
+
+  let currentEditingArtwork = null;
+
+  // Open Edit Modal and load details
+  function openEditModal(id) {
+    const art = artworks.find(item => item.id === id);
+    if (!art) return;
+
+    currentEditingArtwork = art;
+
+    editArtworkId.value = art.id;
+    editTitle.value = art.title;
+    editArtist.value = art.artist;
+    editDescription.value = art.description;
+
+    // Reset file inputs and displays
+    editImageInput.value = '';
+    editImageFileName.textContent = '';
+    editTargetInput.value = '';
+    editTargetFileName.textContent = '';
+    editVideoInput.value = '';
+    editVideoFileName.textContent = '';
+
+    // Show current file info (extract just the filename for display)
+    const getFilename = (url) => url ? url.split('/').pop() : 'None';
+    currentImageInfo.innerHTML = `Current Image: <a href="${art.imageUrl}" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">${getFilename(art.imageUrl)}</a>`;
+    currentTargetInfo.innerHTML = `Current Target: <a href="${art.targetUrl}" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">${getFilename(art.targetUrl)}</a>`;
+    currentVideoInfo.innerHTML = `Current Video: <a href="${art.videoUrl}" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">${getFilename(art.videoUrl)}</a>`;
+
+    // Disable save changes button initially
+    editSubmitBtn.disabled = true;
+
+    editModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Close Edit Modal
+  function closeEditModal() {
+    editModal.style.display = 'none';
+    document.body.style.overflow = '';
+    currentEditingArtwork = null;
+  }
+
+  closeEditBtn.addEventListener('click', closeEditModal);
+  cancelEditBtn.addEventListener('click', closeEditModal);
+  editModal.addEventListener('click', (e) => {
+    if (e.target === editModal) {
+      closeEditModal();
+    }
+  });
+
+  // Track if form actually changed from original values
+  function checkFormChanges() {
+    if (!currentEditingArtwork) {
+      editSubmitBtn.disabled = true;
+      return;
+    }
+
+    const titleChanged = editTitle.value.trim() !== currentEditingArtwork.title;
+    const artistChanged = editArtist.value.trim() !== currentEditingArtwork.artist;
+    const descChanged = editDescription.value.trim() !== currentEditingArtwork.description;
+    
+    const imageChanged = editImageInput.files.length > 0;
+    const targetChanged = editTargetInput.files.length > 0;
+    const videoChanged = editVideoInput.files.length > 0;
+
+    if (titleChanged || artistChanged || descChanged || imageChanged || targetChanged || videoChanged) {
+      editSubmitBtn.disabled = false;
+    } else {
+      editSubmitBtn.disabled = true;
+    }
+  }
+
+  // Listeners for checking changes
+  editTitle.addEventListener('input', checkFormChanges);
+  editArtist.addEventListener('input', checkFormChanges);
+  editDescription.addEventListener('input', checkFormChanges);
+  editImageInput.addEventListener('change', checkFormChanges);
+  editTargetInput.addEventListener('change', checkFormChanges);
+  editVideoInput.addEventListener('change', checkFormChanges);
+
+  // Submit Edit Form
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = editArtworkId.value;
+    const art = artworks.find(item => item.id === id);
+    if (!art) return;
+
+    const titleVal = editTitle.value.trim();
+    const artistVal = editArtist.value.trim();
+    const descVal = editDescription.value.trim();
+
+    const imgFile = editImageInput.files[0];
+    const targetFile = editTargetInput.files[0];
+    const vidFile = editVideoInput.files[0];
+
+    editSubmitBtn.disabled = true;
+
+    try {
+      let imageUrl = art.imageUrl;
+      let targetUrl = art.targetUrl;
+      let videoUrl = art.videoUrl;
+
+      // Count files to upload
+      let step = 1;
+      let totalSteps = 1; // 1 step for metadata save
+      if (imgFile) totalSteps++;
+      if (targetFile) totalSteps++;
+      if (vidFile) totalSteps++;
+
+      // 1. Upload Target Image if changed
+      if (imgFile) {
+        editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new target image...`;
+        imageUrl = await uploadSingleFile(imgFile, 'images');
+      }
+
+      // 2. Upload Target .mind File if changed
+      if (targetFile) {
+        editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new target .mind file...`;
+        targetUrl = await uploadSingleFile(targetFile, 'targets');
+      }
+
+      // 3. Upload Video if changed
+      if (vidFile) {
+        editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new video overlay...`;
+        videoUrl = await uploadSingleFile(vidFile, 'videos');
+      }
+
+      // 4. Update Artwork Metadata
+      editSubmitBtn.textContent = `${step}/${totalSteps}: Saving changes...`;
+      const response = await fetch(`/api/artworks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: titleVal,
+          artist: artistVal,
+          description: descVal,
+          imageUrl,
+          targetUrl,
+          videoUrl
+        })
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update artwork');
+      }
+
+      const updatedArtwork = await response.json();
+      showToast(`"${updatedArtwork.title}" updated successfully!`);
+      closeEditModal();
+      fetchArtworks();
+    } catch (error) {
+      console.error('Error updating artwork:', error);
+      if (error.message !== 'Unauthorized') {
+        showToast(error.message || 'Error updating artwork.', true);
+      }
+    } finally {
+      editSubmitBtn.disabled = false;
+      editSubmitBtn.textContent = 'Save Changes';
     }
   });
 

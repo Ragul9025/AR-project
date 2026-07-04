@@ -311,6 +311,57 @@ app.post('/api/artworks', requireAdminAuth, async (req, res) => {
   }
 });
 
+// API: Update artwork (Protected)
+app.put('/api/artworks/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const { title, artist, description, imageUrl, targetUrl, videoUrl } = req.body;
+
+    if (!title || !artist || !description) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    let artworks = await getArtworks();
+    const index = artworks.findIndex(item => item.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Artwork not found.' });
+    }
+
+    const oldArtwork = artworks[index];
+
+    // Check if files changed and delete the old ones
+    if (imageUrl && imageUrl !== oldArtwork.imageUrl) {
+      await deleteFile(oldArtwork.imageUrl);
+    }
+    if (targetUrl && targetUrl !== oldArtwork.targetUrl) {
+      await deleteFile(oldArtwork.targetUrl);
+    }
+    if (videoUrl && videoUrl !== oldArtwork.videoUrl) {
+      await deleteFile(oldArtwork.videoUrl);
+    }
+
+    // Update artwork object (retain ID, Code, and CreatedAt)
+    const updatedArtwork = {
+      ...oldArtwork,
+      title,
+      artist,
+      description,
+      imageUrl: imageUrl || oldArtwork.imageUrl,
+      targetUrl: targetUrl || oldArtwork.targetUrl,
+      videoUrl: videoUrl || oldArtwork.videoUrl,
+      updatedAt: new Date().toISOString()
+    };
+
+    artworks[index] = updatedArtwork;
+    await saveArtworks(artworks);
+
+    res.json(updatedArtwork);
+  } catch (error) {
+    console.error('Error updating artwork:', error);
+    res.status(500).json({ error: error.message || 'Failed to update artwork.' });
+  }
+});
+
 // API: Delete artwork (Protected)
 app.delete('/api/artworks/:id', requireAdminAuth, async (req, res) => {
   try {

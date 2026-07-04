@@ -13,24 +13,26 @@
   {
     "id": "1782666554928",
     "code": "OBIT",
-    "title": "obito ",
+    "title": "obito",
     "artist": "ragul",
     "description": "dddd",
     "imageUrl": "/uploads/images/1782666554861-977293440.png",
     "targetUrl": "/uploads/targets/1782666554862-547656864.mind",
     "videoUrl": "/uploads/videos/1782666554868-354956529.mp4",
-    "createdAt": "2026-06-28T17:09:14.928Z"
+    "createdAt": "2026-06-28T17:09:14.928Z",
+    "updatedAt": "2026-07-04T12:05:39.646Z"
   },
   {
     "id": "1782837267781",
     "code": "NL2O",
-    "title": "naruto",
+    "title": "naruto_uzumaki",
     "artist": "hinata",
-    "description": "sd",
+    "description": "Naruto_shippuden",
     "imageUrl": "/uploads/images/1782837267576-553858686.jpg",
     "targetUrl": "/uploads/targets/1782837267603-334917345.mind",
     "videoUrl": "/uploads/videos/1782837267709-766384972.mp4",
-    "createdAt": "2026-06-30T16:34:27.781Z"
+    "createdAt": "2026-06-30T16:34:27.781Z",
+    "updatedAt": "2026-07-04T12:08:27.220Z"
   },
   {
     "id": "1782837418045",
