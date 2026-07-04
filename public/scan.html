@@ -28,6 +28,7 @@
       top: 0;
       left: 0;
       z-index: 1;
+      transition: opacity 0.3s ease;
     }
     /* Loading overlay */
     #loadingOverlay {
@@ -482,9 +483,10 @@
         instructions.style.color = 'var(--accent-cyan)';
       }
 
-      // Hide the AR scanner scene to focus on the video and prevent background camera rendering
+      // Hide the AR scanner scene gracefully using opacity to prevent WebGL context lost crashes
       if (sceneContainer) {
-        sceneContainer.style.display = 'none';
+        sceneContainer.style.opacity = '0';
+        sceneContainer.style.pointerEvents = 'none';
       }
 
       // Show container
@@ -657,6 +659,11 @@
         }
       }
 
+      // iOS native compatibility: Exit native video player fullscreen if active
+      if (video.webkitDisplayingFullscreen) {
+        video.webkitExitFullscreen();
+      }
+
       if (endOverlay) {
         endOverlay.classList.remove('show');
       }
@@ -670,9 +677,10 @@
         if (endOverlay) {
           endOverlay.style.display = 'none';
         }
-        // Show the AR scanner scene again to resume scanning
+        // Restore the AR scanner scene visibility smoothly
         if (sceneContainer) {
-          sceneContainer.style.display = 'block';
+          sceneContainer.style.opacity = '1';
+          sceneContainer.style.pointerEvents = 'auto';
         }
       }, 400);
 
@@ -855,6 +863,12 @@
 
         // Set video source for the fullscreen player
         fullscreenVideo.src = artwork.videoUrl;
+
+        // iOS native Done button listener
+        fullscreenVideo.addEventListener('webkitendfullscreen', () => {
+          console.log('User clicked Done button on iOS native player');
+          closeFullscreenVideo();
+        });
 
         // Listen for video end to show replay / close overlay
         fullscreenVideo.addEventListener('ended', () => {

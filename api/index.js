@@ -23,6 +23,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Cache-Control middleware to prevent CDN and browser caching of API requests
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 // Local-only: Ensure directories exist
 if (!useVercelBlob) {
   const dirs = [
@@ -61,7 +70,8 @@ async function getArtworks() {
     const artworksBlob = blobs.find(b => b.pathname === 'data/artworks.json');
     
     if (artworksBlob) {
-      const response = await fetch(artworksBlob.url);
+      // Append current timestamp as query parameter to bust Vercel Blob public CDN cache
+      const response = await fetch(`${artworksBlob.url}?t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
         return data || [];
