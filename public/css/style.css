@@ -950,3 +950,131 @@ main {
   color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
+
+/* ==========================================================================
+   Global Mobile Responsive Overrides
+   ========================================================================== */
+@media (max-width: 600px) {
+  /* Header & Logo */
+  header {
+    padding: 1rem 1.25rem;
+  }
+  .logo {
+    font-size: 1.5rem;
+  }
+  .nav-links {
+    gap: 0.75rem;
+  }
+  .nav-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  /* Hero Section */
+  .hero {
+    padding: 2rem 0.5rem;
+    margin-bottom: 2rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    letter-spacing: -0.5px;
+  }
+  .hero p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  /* Gallery Grid & Cards */
+  .artwork-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Landing Page Code Input Card */
+  .landing-card {
+    padding: 2rem 1.25rem !important;
+    margin: 1.5rem auto;
+    border-radius: 20px;
+  }
+  .landing-card h2 {
+    font-size: 1.5rem !important;
+  }
+  .code-char-input {
+    width: 48px !important;
+    height: 58px !important;
+    font-size: 1.6rem !important;
+    border-radius: 12px !important;
+  }
+  .submit-btn {
+    padding: 0.85rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Admin Dashboard Layout & Panel spacing */
+  main {
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+  .admin-header {
+    margin-bottom: 1.5rem;
+  }
+  .admin-header h2 {
+    font-size: 1.8rem;
+  }
+  .dashboard-layout {
+    gap: 1.5rem;
+  }
+  .admin-panel {
+    padding: 1.25rem;
+    border-radius: 20px;
+  }
+  .admin-panel h3 {
+    font-size: 1.25rem;
+  }
+  .guide-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Admin Artworks List Layout (Stack vertically to prevent overflow) */
+  .admin-artwork-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 14px;
+  }
+  .admin-artwork-thumb {
+    width: 100%;
+    height: 140px;
+    border-radius: 10px;
+    object-fit: cover;
+  }
+  .admin-artwork-info {
+    text-align: center;
+  }
+  .admin-actions {
+    justify-content: center;
+    border-top: 1px solid var(--panel-border);
+    padding-top: 0.75rem;
+    width: 100%;
+  }
+  .admin-btn {
+    flex: 1;
+    padding: 0.75rem; /* Larger touch targets for mobile */
+  }
+
+  /* Modal windows container */
+  .modal {
+    padding: 1rem;
+  }
+  .modal-content {
+    border-radius: 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-body {
+    padding: 1.25rem !important;
+  }
+}
