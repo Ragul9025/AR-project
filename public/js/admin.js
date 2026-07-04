@@ -354,19 +354,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // 1. Upload Target Image if changed
       if (imgFile) {
         editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new target image...`;
-        imageUrl = await uploadSingleFile(imgFile, 'images');
+        imageUrl = await smartUploadFile(imgFile, 'images');
       }
 
       // 2. Upload Target .mind File if changed
       if (targetFile) {
         editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new target .mind file...`;
-        targetUrl = await uploadSingleFile(targetFile, 'targets');
+        targetUrl = await smartUploadFile(targetFile, 'targets');
       }
 
       // 3. Upload Video if changed
       if (vidFile) {
         editSubmitBtn.textContent = `${step++}/${totalSteps}: Uploading new video overlay...`;
-        videoUrl = await uploadSingleFile(vidFile, 'videos');
+        videoUrl = await smartUploadFile(vidFile, 'videos');
       }
 
       // 4. Update Artwork Metadata
@@ -451,6 +451,101 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper to compress images client-side before uploading (resizes & uses JPEG quality compression)
+  async function compressImage(file, maxWidth = 1920, maxHeight = 1080, quality = 0.8) {
+    if (!file.type.startsWith('image/')) return file;
+    
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Scale dimensions if larger than limits
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                // Return compressed JPEG File object
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                  type: "image/jpeg",
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file); // fallback to original on error
+              }
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+        img.onerror = () => resolve(file);
+      };
+      reader.onerror = () => resolve(file);
+    });
+  }
+
+  // Smart upload function that attempts direct Vercel Blob client upload and falls back to local server upload
+  async function smartUploadFile(file, type) {
+    // 1. If it's an image, compress it first to save bandwidth and load AR faster!
+    if (type === 'images') {
+      try {
+        file = await compressImage(file);
+      } catch (err) {
+        console.warn('Image compression failed, using original file:', err);
+      }
+    }
+
+    // 2. Try Vercel Blob direct client upload first (essential for bypassing Vercel 4.5MB limit on videos)
+    try {
+      const { upload } = await import("https://esm.sh/@vercel/blob@2.5.0/client");
+      
+      const folderName = type === 'images' ? 'images' : type === 'targets' ? 'targets' : 'videos';
+      // Format pathname to uploads/{folderName}/{timestamp}-{filename}
+      const pathname = `uploads/${folderName}/${Date.now()}-${file.name}`;
+      
+      const blob = await upload(pathname, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload/blob-token',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (blob && blob.url) {
+        console.log(`Directly uploaded ${type} to Vercel Blob:`, blob.url);
+        return blob.url;
+      }
+    } catch (err) {
+      console.log(`Direct client-side Vercel Blob upload failed/not active, falling back to server upload:`, err);
+    }
+
+    // 3. Fallback to standard server-side upload via Express /api/upload
+    return await uploadSingleFile(file, type);
+  }
+
   // Helper to upload a single file
   async function uploadSingleFile(file, type) {
     const fileData = new FormData();
@@ -501,15 +596,15 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // 1. Upload Target Image
       submitBtn.textContent = '1/4: Uploading target image...';
-      const imageUrl = await uploadSingleFile(imgFile, 'images');
+      const imageUrl = await smartUploadFile(imgFile, 'images');
 
       // 2. Upload Target .mind File
       submitBtn.textContent = '2/4: Uploading target .mind file...';
-      const targetUrl = await uploadSingleFile(targetFile, 'targets');
+      const targetUrl = await smartUploadFile(targetFile, 'targets');
 
       // 3. Upload Video
       submitBtn.textContent = '3/4: Uploading overlay video (this may take a moment)...';
-      const videoUrl = await uploadSingleFile(vidFile, 'videos');
+      const videoUrl = await smartUploadFile(vidFile, 'videos');
 
       // 4. Save Artwork Metadata
       submitBtn.textContent = '4/4: Creating AR experience...';

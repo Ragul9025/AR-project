@@ -257,6 +257,41 @@ app.get('/api/artworks/code/:code', async (req, res) => {
   }
 });
 
+// API: Generate Vercel Blob Upload Token (Protected)
+app.post('/api/upload/blob-token', requireAdminAuth, async (req, res) => {
+  try {
+    if (!useVercelBlob) {
+      return res.status(400).json({ error: 'Vercel Blob is not configured/enabled.' });
+    }
+
+    const { handleUpload } = require('@vercel/blob/client');
+    const jsonResponse = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        return {
+          allowedContentTypes: [
+            'image/jpeg',
+            'image/png',
+            'video/mp4',
+            'application/octet-stream' // For .mind files
+          ],
+          tokenPayload: JSON.stringify({ admin: true })
+        };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // No DB update needed here since the frontend will save the metadata
+        console.log('Vercel Blob client upload completed:', blob.url);
+      }
+    });
+
+    res.json(jsonResponse);
+  } catch (error) {
+    console.error('Error generating Vercel Blob client token:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate upload token.' });
+  }
+});
+
 // API: Upload a single file (Protected)
 app.post('/api/upload', requireAdminAuth, upload.single('file'), async (req, res) => {
   try {
