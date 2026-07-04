@@ -53,17 +53,36 @@ async function getArtworks() {
       console.error("Error reading from Vercel KV, falling back to empty array:", err);
       return [];
     }
-  } else {
+  } else if (useVercelBlob) {
+    // FALLBACK: Store artworks JSON file in Vercel Blob to avoid EROFS / paid KV database requirements!
     try {
-      if (!fs.existsSync(ARTWORKS_FILE)) {
-        return [];
+      const { list } = require('@vercel/blob');
+      const token = process.env.BLOB_READ_WRITE_TOKEN;
+      const { blobs } = await list({ token });
+      const artworksBlob = blobs.find(b => b.pathname === 'data/artworks.json');
+      
+      if (artworksBlob) {
+        const response = await fetch(artworksBlob.url);
+        if (response.ok) {
+          const data = await response.json();
+          return data || [];
+        }
       }
-      const data = fs.readFileSync(ARTWORKS_FILE, 'utf8');
-      return JSON.parse(data);
     } catch (err) {
-      console.error("Error reading from local file:", err);
+      console.error("Error reading artworks.json from Vercel Blob:", err);
+    }
+  }
+
+  // Local fallback (works on local machine, throws EROFS on Vercel if KV/Blob are missing)
+  try {
+    if (!fs.existsSync(ARTWORKS_FILE)) {
       return [];
     }
+    const data = fs.readFileSync(ARTWORKS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error("Error reading from local file:", err);
+    return [];
   }
 }
 
@@ -71,13 +90,28 @@ async function getArtworks() {
 async function saveArtworks(artworks) {
   if (useVercelKV) {
     await kv.set('artworks', artworks);
-  } else {
-    const dataDir = path.dirname(ARTWORKS_FILE);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+  } else if (useVercelBlob) {
+    // FALLBACK: Store artworks JSON file in Vercel Blob to avoid EROFS / paid KV database requirements!
+    try {
+      const { put } = require('@vercel/blob');
+      const token = process.env.BLOB_READ_WRITE_TOKEN;
+      await put('data/artworks.json', JSON.stringify(artworks, null, 2), {
+        access: 'public',
+        addRandomSuffix: false,
+        token
+      });
+      return;
+    } catch (err) {
+      console.error("Error saving artworks.json to Vercel Blob:", err);
     }
-    fs.writeFileSync(ARTWORKS_FILE, JSON.stringify(artworks, null, 2));
   }
+
+  // Local fallback
+  const dataDir = path.dirname(ARTWORKS_FILE);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  fs.writeFileSync(ARTWORKS_FILE, JSON.stringify(artworks, null, 2));
 }
 
 // Helper to generate a 4-character short code
