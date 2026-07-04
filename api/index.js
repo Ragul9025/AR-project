@@ -109,6 +109,7 @@ async function saveArtworks(artworks) {
     await put('data/artworks.json', JSON.stringify(artworks, null, 2), {
       access: 'public',
       addRandomSuffix: false,
+      allowOverwrite: true,
       token
     });
     return;
