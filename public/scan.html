@@ -214,6 +214,42 @@
     }
 
     /* Alternative Verification Styles */
+    .ar-artwork-select-container {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 1500;
+    }
+    .ar-artwork-select {
+      background: rgba(10, 8, 19, 0.85);
+      border: 1px solid var(--panel-border);
+      color: var(--text-primary);
+      padding: 0.75rem 2.5rem 0.75rem 1.5rem;
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      transition: var(--transition);
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      background-size: 16px;
+    }
+    .ar-artwork-select:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-cyan);
+    }
+    .ar-artwork-select:focus {
+      outline: none;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 10px rgba(157, 78, 221, 0.3);
+    }
     .alt-options-container {
       position: absolute;
       bottom: 2rem;
@@ -438,6 +474,86 @@
       border: 1px solid rgba(0, 245, 212, 0.2);
       color: #33ffeb;
     }
+
+    /* Mobile Responsive Overrides */
+    @media (max-width: 600px) {
+      .ar-artwork-select-container {
+        top: 5rem;
+        left: 1.5rem;
+        right: auto;
+        width: calc(100% - 3rem);
+      }
+      .ar-artwork-select {
+        width: 100%;
+      }
+
+      /* Scale the scanner reticle frame down on mobile to prevent overflow and leave room for panels */
+      .ar-scanner-frame {
+        width: 65vw !important;
+        height: 85vw !important;
+        max-width: 260px !important;
+        max-height: 350px !important;
+      }
+      .ar-scanner-instructions {
+        bottom: -3rem !important;
+        font-size: 0.8rem !important;
+        padding: 0.4rem 1rem !important;
+      }
+
+      /* Adjust troubleshooting panel positioning & padding on small viewports */
+      .alt-options-container {
+        bottom: 1.5rem;
+        width: 92%;
+      }
+      .alt-options-panel {
+        padding: 1rem;
+        gap: 0.75rem;
+      }
+      .upload-dropzone {
+        padding: 1rem 0.5rem;
+      }
+      .alt-desc {
+        font-size: 0.7rem;
+      }
+
+      /* Stack video completion overlay buttons vertically to prevent wrapping overflow */
+      .video-end-overlay .end-title {
+        font-size: 1.5rem !important;
+      }
+      .video-end-overlay .end-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 80%;
+      }
+      .end-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+
+      /* Reposition exit/fullscreen buttons on mobile to form a neat top/bottom navigation bar */
+      .video-controls {
+        bottom: auto;
+        top: 1.5rem;
+        right: 1.5rem;
+        left: 1.5rem;
+        justify-content: space-between;
+        width: calc(100% - 3rem);
+      }
+      .control-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+      }
+
+      /* Transition classes for smooth fade in/out when tracking targets */
+      .ar-scanner-frame,
+      .ar-artwork-select-container,
+      .alt-toggle-btn,
+      .ar-btn-back {
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+    }
   </style>
 
   <script>
@@ -455,10 +571,99 @@
     // Custom A-Frame component to handle video playback based on tracking events
     AFRAME.registerComponent('video-handler', {
       init: function () {
+        const video = document.getElementById('arVideo');
+        const videoEl = this.el.querySelector('a-video');
+        const arAudioToggle = document.getElementById('arAudioToggle');
+        
+        if (video && videoEl) {
+          video.addEventListener('loadedmetadata', () => {
+            const aspect = video.videoHeight / video.videoWidth;
+            videoEl.setAttribute('height', aspect);
+          });
+        }
+
         this.el.addEventListener('targetFound', () => {
-          console.log('Target found - triggering fullscreen video');
-          if (!scanCooldown) {
-            triggerFullscreenVideo();
+          console.log('Target found - playing AR video on target');
+          if (video && !scanCooldown) {
+            video.play().catch(err => {
+              console.warn('Autoplay blocked, playing muted:', err);
+              video.muted = true;
+              video.play();
+            });
+            if (arAudioToggle) {
+              arAudioToggle.style.display = 'flex';
+            }
+            if (typeof window.updateAudioIcon === 'function') {
+              window.updateAudioIcon();
+            }
+            
+            // Hide Scanner Reticle Frame and background dim box
+            const reticle = document.getElementById('scannerReticle');
+            if (reticle) {
+              reticle.style.opacity = '0';
+              reticle.style.pointerEvents = 'none';
+            }
+
+            // Hide Troubleshooting button
+            const altBtn = document.getElementById('altToggleBtn');
+            if (altBtn) {
+              altBtn.style.opacity = '0';
+              altBtn.style.pointerEvents = 'none';
+            }
+
+            // Hide Selector Dropdown if present
+            const selector = document.getElementById('artworkSelectorContainer');
+            if (selector) {
+              selector.style.opacity = '0';
+              selector.style.pointerEvents = 'none';
+            }
+
+            // Hide Back button to show only video
+            const backBtn = document.querySelector('.ar-btn-back');
+            if (backBtn) {
+              backBtn.style.opacity = '0';
+              backBtn.style.pointerEvents = 'none';
+            }
+          }
+        });
+
+        this.el.addEventListener('targetLost', () => {
+          console.log('Target lost - pausing AR video');
+          if (video) {
+            video.pause();
+          }
+          if (arAudioToggle) {
+            arAudioToggle.style.display = 'none';
+          }
+          
+          // Restore Scanner Reticle Frame and background dim box
+          const reticle = document.getElementById('scannerReticle');
+          if (reticle) {
+            reticle.style.opacity = '1';
+            reticle.style.pointerEvents = 'auto';
+          }
+
+          // Restore Troubleshooting button
+          const altBtn = document.getElementById('altToggleBtn');
+          if (altBtn) {
+            altBtn.style.opacity = '1';
+            altBtn.style.pointerEvents = 'auto';
+          }
+
+          // Restore Selector Dropdown if present (and no artworkId was specified)
+          const selector = document.getElementById('artworkSelectorContainer');
+          const urlParams = new URLSearchParams(window.location.search);
+          const artworkId = urlParams.get('id');
+          if (selector && !artworkId) {
+            selector.style.opacity = '1';
+            selector.style.pointerEvents = 'auto';
+          }
+
+          // Restore Back button
+          const backBtn = document.querySelector('.ar-btn-back');
+          if (backBtn) {
+            backBtn.style.opacity = '1';
+            backBtn.style.pointerEvents = 'auto';
           }
         });
       }
@@ -727,6 +932,22 @@
       Exit Scanner
     </a>
 
+    <!-- Artwork Selector (visible when no id parameter is passed) -->
+    <div id="artworkSelectorContainer" class="ar-artwork-select-container" style="display: none; pointer-events: auto;">
+      <select id="artworkSelect" class="ar-artwork-select">
+        <option value="" disabled selected>Select Artwork to Scan...</option>
+      </select>
+    </div>
+
+    <!-- Audio toggle button (used for AR on-target video) -->
+    <button id="arAudioToggle" class="ar-audio-toggle" style="display: none; pointer-events: auto;">
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+    </button>
+
     <!-- Scanner Reticle Frame -->
     <div class="ar-scanner-frame" id="scannerReticle">
       <div class="ar-scanner-corners"></div>
@@ -743,20 +964,16 @@
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
-        Trouble scanning? Try options
+        Trouble scanning? Upload Image
       </button>
       
       <div class="alt-options-panel" id="altOptionsPanel">
         <div class="alt-panel-header">
-          <h4>Alternative Options</h4>
+          <h4>Upload Target Image</h4>
           <button class="close-alt-panel" id="closeAltPanel">&times;</button>
         </div>
-        <div class="alt-tabs">
-          <button class="alt-tab-btn active" data-tab="upload-tab">Upload Image</button>
-          <button class="alt-tab-btn" data-tab="code-tab">Enter Code</button>
-        </div>
         
-        <!-- Upload Tab -->
+        <!-- Upload Option Content -->
         <div class="alt-tab-content active" id="upload-tab">
           <p class="alt-desc">Upload a photo of the target artwork from your device. We will analyze the visual details to verify and play the video.</p>
           <div class="upload-dropzone" id="uploadDropzone">
@@ -770,15 +987,6 @@
             <span class="file-name" id="fileNameDisplay"></span>
           </div>
           <button class="alt-submit-btn" id="verifyImageBtn" disabled>Verify Image & Play</button>
-        </div>
-        
-        <!-- Code Tab -->
-        <div class="alt-tab-content" id="code-tab">
-          <p class="alt-desc">Enter the 4-character identifier printed on the physical artwork label.</p>
-          <div class="alt-code-input-wrapper">
-            <input type="text" id="altCodeInput" maxlength="4" placeholder="Code (e.g. PORT)" autocomplete="off">
-          </div>
-          <button class="alt-submit-btn" id="verifyCodeBtn">Verify Code & Play</button>
         </div>
 
         <div class="alt-status-message" id="altStatusMsg"></div>
@@ -846,314 +1054,37 @@
       const loadingOverlay = document.getElementById('loadingOverlay');
       const fullscreenVideo = document.getElementById('fullscreenVideo');
 
-      if (!artworkId) {
-        alert('No artwork ID specified. Returning to gallery.');
+      let artworks = [];
+      let artwork = null;
+
+      try {
+        // Fetch all artworks first
+        const response = await fetch('/api/artworks');
+        if (!response.ok) {
+          throw new Error('Failed to fetch artworks database');
+        }
+        artworks = await response.json();
+
+        if (artworkId) {
+          artwork = artworks.find(item => item.id === artworkId);
+          if (!artwork) {
+            alert('Artwork not found. Returning to gallery.');
+            window.location.href = '/';
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error starting scanner:', error);
+        alert('Failed to load artwork. Returning to gallery.');
         window.location.href = '/';
         return;
       }
 
-      try {
-        // Fetch artwork details
-        const response = await fetch(`/api/artworks/${artworkId}`);
-        if (!response.ok) {
-          throw new Error('Artwork not found');
-        }
-        const artwork = await response.json();
-        if (!artwork) throw new Error('Artwork data empty');
-
-        // Set video source for the fullscreen player
+      // If ID is specified, set the video source and initialize scene
+      if (artwork) {
         fullscreenVideo.src = artwork.videoUrl;
 
-        // iOS native Done button listener
-        fullscreenVideo.addEventListener('webkitendfullscreen', () => {
-          console.log('User clicked Done button on iOS native player');
-          closeFullscreenVideo();
-        });
-
-        // Listen for video end to show replay / close overlay
-        fullscreenVideo.addEventListener('ended', () => {
-          const endOverlay = document.getElementById('videoEndOverlay');
-          const playBtn = document.getElementById('playPauseCenterBtn');
-          if (playBtn) playBtn.classList.remove('visible');
-          if (endOverlay) {
-            endOverlay.style.display = 'flex';
-            // Force reflow
-            endOverlay.offsetHeight;
-            endOverlay.classList.add('show');
-          }
-        });
-
-        // Listen to play/pause events to update UI
-        fullscreenVideo.addEventListener('play', () => {
-          const playBtn = document.getElementById('playPauseCenterBtn');
-          if (playBtn) playBtn.classList.remove('visible');
-        });
-
-        fullscreenVideo.addEventListener('pause', () => {
-          const playBtn = document.getElementById('playPauseCenterBtn');
-          const endOverlay = document.getElementById('videoEndOverlay');
-          // Only show center play button if the video is not ended
-          if (playBtn && (!endOverlay || !endOverlay.classList.contains('show'))) {
-            playBtn.classList.add('visible');
-          }
-        });
-
-        // --- Alternative Verification Event Handlers ---
-        const altToggleBtn = document.getElementById('altToggleBtn');
-        const altOptionsPanel = document.getElementById('altOptionsPanel');
-        const closeAltPanel = document.getElementById('closeAltPanel');
-        const scannerReticle = document.getElementById('scannerReticle');
-        
-        // Toggle panel visibility
-        altToggleBtn.addEventListener('click', () => {
-          altToggleBtn.style.display = 'none';
-          altOptionsPanel.style.display = 'flex';
-          // Force reflow for transitions
-          altOptionsPanel.offsetHeight;
-          altOptionsPanel.classList.add('show');
-          // Dim reticle frame during troubleshooting
-          if (scannerReticle) {
-            scannerReticle.style.opacity = '0.15';
-            scannerReticle.style.pointerEvents = 'none';
-          }
-        });
-
-        const hideAltPanel = () => {
-          altOptionsPanel.classList.remove('show');
-          if (scannerReticle) {
-            scannerReticle.style.opacity = '1';
-            scannerReticle.style.pointerEvents = 'auto';
-          }
-          setTimeout(() => {
-            altOptionsPanel.style.display = 'none';
-            altToggleBtn.style.display = 'flex';
-            // Clear status and inputs
-            clearAltStatus();
-            if (fileInput) fileInput.value = '';
-            if (fileNameDisplay) fileNameDisplay.textContent = '';
-            selectedFile = null;
-            if (verifyImageBtn) verifyImageBtn.disabled = true;
-            if (altCodeInput) altCodeInput.value = '';
-          }, 300);
-        };
-
-        closeAltPanel.addEventListener('click', hideAltPanel);
-
-        // Tab Switching Logic
-        const tabBtns = document.querySelectorAll('.alt-tab-btn');
-        const tabContents = document.querySelectorAll('.alt-tab-content');
-        
-        tabBtns.forEach(btn => {
-          btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            
-            btn.classList.add('active');
-            const tabId = btn.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
-            clearAltStatus();
-          });
-        });
-
-        // Dropzone & File Selection Logic
-        const uploadDropzone = document.getElementById('uploadDropzone');
-        const fileInput = document.getElementById('targetImageFile');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        const verifyImageBtn = document.getElementById('verifyImageBtn');
-        let selectedFile = null;
-
-        uploadDropzone.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', (e) => {
-          if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-          }
-        });
-
-        // Drag and Drop
-        ['dragenter', 'dragover'].forEach(eventName => {
-          uploadDropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            uploadDropzone.classList.add('dragover');
-          }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-          uploadDropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            uploadDropzone.classList.remove('dragover');
-          }, false);
-        });
-
-        uploadDropzone.addEventListener('drop', (e) => {
-          const dt = e.dataTransfer;
-          const files = dt.files;
-          if (files.length > 0) {
-            handleFileSelect(files[0]);
-          }
-        });
-
-        function handleFileSelect(file) {
-          if (!file.type.startsWith('image/')) {
-            showAltStatus('Only image files are allowed.', 'error');
-            verifyImageBtn.disabled = true;
-            fileNameDisplay.textContent = '';
-            selectedFile = null;
-            return;
-          }
-          selectedFile = file;
-          fileNameDisplay.textContent = `Selected: ${file.name}`;
-          verifyImageBtn.disabled = false;
-          clearAltStatus();
-        }
-
-        // Verification Logic helper
-        const altStatusMsg = document.getElementById('altStatusMsg');
-        
-        function showAltStatus(msg, type) {
-          altStatusMsg.textContent = msg;
-          altStatusMsg.className = 'alt-status-message ' + type;
-        }
-
-        function clearAltStatus() {
-          altStatusMsg.textContent = '';
-          altStatusMsg.className = 'alt-status-message';
-        }
-
-        // Option 1: Visual Image Comparison
-        verifyImageBtn.addEventListener('click', async () => {
-          if (!selectedFile) return;
-          
-          verifyImageBtn.disabled = true;
-          verifyImageBtn.textContent = 'Comparing visual details...';
-          showAltStatus('Analyzing uploaded image layout and colors...', 'success');
-
-          try {
-            const result = await verifyImageSimilarity(selectedFile, artwork.imageUrl);
-            if (result.success) {
-              const msg = result.isFallback 
-                ? 'Security & metadata check confirmed. Loading experience...' 
-                : `Perfect Match! Similarity score: ${Math.round(result.similarity * 100)}%. Loading experience...`;
-              showAltStatus(msg, 'success');
-              
-              setTimeout(() => {
-                hideAltPanel();
-                triggerFullscreenVideo();
-                // reset button
-                verifyImageBtn.disabled = false;
-                verifyImageBtn.textContent = 'Verify Image & Play';
-              }, 1200);
-            } else {
-              showAltStatus(result.error || 'Verification failed. The uploaded image does not match this artwork. Please make sure you upload the correct image.', 'error');
-              verifyImageBtn.disabled = false;
-              verifyImageBtn.textContent = 'Verify Image & Play';
-            }
-          } catch (err) {
-            console.error(err);
-            showAltStatus('An error occurred during comparison. Please try again.', 'error');
-            verifyImageBtn.disabled = false;
-            verifyImageBtn.textContent = 'Verify Image & Play';
-          }
-        });
-
-        // Image Similarity Comparison Helper
-        async function verifyImageSimilarity(file, expectedImageUrl) {
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-              const userImg = new Image();
-              userImg.onload = function() {
-                const targetImg = new Image();
-                targetImg.crossOrigin = "anonymous";
-                targetImg.onload = function() {
-                  try {
-                    const similarity = calculateCanvasSimilarity(userImg, targetImg);
-                    console.log("Calculated canvas similarity score:", similarity);
-                    resolve({ success: similarity >= 0.70, similarity: similarity });
-                  } catch (err) {
-                    console.error("Canvas read block (CORS security constraint):", err);
-                    // CORS fallback: check aspect ratios of user upload vs expected target image
-                    const userAspectRatio = userImg.width / userImg.height;
-                    const targetAspectRatio = targetImg.width / targetImg.height;
-                    const ratioDifference = Math.abs(userAspectRatio - targetAspectRatio) / targetAspectRatio;
-                    
-                    // If ratio is within 15% tolerance, we approve as fallback
-                    if (ratioDifference < 0.15) {
-                      resolve({ success: true, isFallback: true });
-                    } else {
-                      resolve({ success: false, error: 'Layout shape mismatch! The aspect ratio of your uploaded image does not match the artwork.' });
-                    }
-                  }
-                };
-                targetImg.onerror = function() {
-                  console.error("Could not load expected target image for comparison.");
-                  // Fallback: If target image fails to load, trust the user upload for demonstration purposes
-                  resolve({ success: true, isFallback: true });
-                };
-                targetImg.src = expectedImageUrl;
-              };
-              userImg.onerror = function() {
-                resolve({ success: false, error: 'Could not read your image file. Please try another file.' });
-              };
-              userImg.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-          });
-        }
-
-        function calculateCanvasSimilarity(img1, img2) {
-          const size = 16;
-          const canvas1 = document.createElement('canvas');
-          const canvas2 = document.createElement('canvas');
-          canvas1.width = size;
-          canvas1.height = size;
-          canvas2.width = size;
-          canvas2.height = size;
-          
-          const ctx1 = canvas1.getContext('2d');
-          const ctx2 = canvas2.getContext('2d');
-          
-          ctx1.drawImage(img1, 0, 0, size, size);
-          ctx2.drawImage(img2, 0, 0, size, size);
-          
-          const data1 = ctx1.getImageData(0, 0, size, size).data;
-          const data2 = ctx2.getImageData(0, 0, size, size).data;
-          
-          let diff = 0;
-          let maxDiff = size * size * 3 * 255;
-          for (let i = 0; i < data1.length; i += 4) {
-            diff += Math.abs(data1[i] - data2[i]);       // R
-            diff += Math.abs(data1[i+1] - data2[i+1]);   // G
-            diff += Math.abs(data1[i+2] - data2[i+2]);   // B
-          }
-          
-          return 1 - (diff / maxDiff);
-        }
-
-        // Option 2: Manual Code Verification
-        const verifyCodeBtn = document.getElementById('verifyCodeBtn');
-        const altCodeInput = document.getElementById('altCodeInput');
-
-        verifyCodeBtn.addEventListener('click', () => {
-          const enteredCode = altCodeInput.value.trim().toUpperCase();
-          if (enteredCode.length !== 4) {
-            showAltStatus('Verification code must be exactly 4 characters.', 'error');
-            return;
-          }
-
-          if (enteredCode === artwork.code.toUpperCase()) {
-            showAltStatus('Code Verified! Loading experience...', 'success');
-            setTimeout(() => {
-              hideAltPanel();
-              triggerFullscreenVideo();
-              altCodeInput.value = '';
-            }, 1000);
-          } else {
-            showAltStatus(`Incorrect verification code. The code entered does not match this artwork.`, 'error');
-          }
-        });
-
-        // Inject the A-Frame Scene (Only contains tracking, no 3D video rendering)
+        // Inject the A-Frame Scene with assets and video plane to project over the physical target
         container.innerHTML = `
           <a-scene 
             mindar-image="imageTargetSrc: ${artwork.targetUrl}; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiError: yes; warmupTolerance: 5; missTolerance: 5;" 
@@ -1162,10 +1093,16 @@
             device-orientation-permission-ui="enabled: false"
             renderer="colorManagement: true, physicallyCorrectLights: true"
           >
+            <a-assets>
+              <video id="arVideo" src="${artwork.videoUrl}" preload="auto" loop playsinline webkit-playsinline></video>
+            </a-assets>
+
             <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-            <!-- Target entity with video-handler to trigger full screen playback -->
-            <a-entity mindar-image-target="targetIndex: 0" video-handler></a-entity>
+            <!-- Target entity with video-handler to control 3D video playback -->
+            <a-entity mindar-image-target="targetIndex: 0" video-handler>
+              <a-video src="#arVideo" width="1" height="0.5625" position="0 0 0" rotation="0 0 0"></a-video>
+            </a-entity>
           </a-scene>
         `;
 
@@ -1185,12 +1122,368 @@
           alert('Failed to initialize the camera or AR engine. Please make sure you have granted camera permissions.');
           window.location.href = '/';
         });
+      } else {
+        // If no ID specified, hide the loading overlay immediately since we aren't initializing AR scene yet
+        loadingOverlay.style.opacity = 0;
+        setTimeout(() => {
+          loadingOverlay.style.display = 'none';
+        }, 500);
 
-      } catch (error) {
-        console.error('Error starting scanner:', error);
-        alert('Failed to load artwork. Returning to gallery.');
-        window.location.href = '/';
+        // Update instructions to prompt for artwork selection/upload
+        const instructions = document.querySelector('.ar-scanner-instructions');
+        if (instructions) {
+          instructions.textContent = 'Please select an artwork or upload image below';
+        }
+
+        // Show the dropdown selector
+        const artworkSelectorContainer = document.getElementById('artworkSelectorContainer');
+        const artworkSelect = document.getElementById('artworkSelect');
+        if (artworkSelectorContainer && artworkSelect) {
+          artworkSelectorContainer.style.display = 'block';
+          
+          // Populate selector options
+          artworks.forEach(art => {
+            const option = document.createElement('option');
+            option.value = art.id;
+            option.textContent = `${art.title} (by ${art.artist})`;
+            artworkSelect.appendChild(option);
+          });
+
+          // Handle change events to load scanner for selected artwork
+          artworkSelect.addEventListener('change', (e) => {
+            const selectedId = e.target.value;
+            if (selectedId) {
+              window.location.href = `/scan.html?id=${selectedId}`;
+            }
+          });
+        }
       }
+
+      // Audio toggle button event listener
+      const arAudioToggle = document.getElementById('arAudioToggle');
+      
+      if (arAudioToggle) {
+        arAudioToggle.addEventListener('click', () => {
+          const arVideo = document.getElementById('arVideo');
+          if (arVideo) {
+            arVideo.muted = !arVideo.muted;
+            window.updateAudioIcon();
+          }
+        });
+      }
+
+      window.updateAudioIcon = function() {
+        const arVideo = document.getElementById('arVideo');
+        const arAudioToggle = document.getElementById('arAudioToggle');
+        if (!arVideo || !arAudioToggle) return;
+
+        if (arVideo.muted) {
+          arAudioToggle.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          `;
+        } else {
+          arAudioToggle.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          `;
+        }
+      };
+
+      // iOS native Done button listener
+      fullscreenVideo.addEventListener('webkitendfullscreen', () => {
+        console.log('User clicked Done button on iOS native player');
+        closeFullscreenVideo();
+      });
+
+      // Listen for video end to show replay / close overlay
+      fullscreenVideo.addEventListener('ended', () => {
+        const endOverlay = document.getElementById('videoEndOverlay');
+        const playBtn = document.getElementById('playPauseCenterBtn');
+        if (playBtn) playBtn.classList.remove('visible');
+        if (endOverlay) {
+          endOverlay.style.display = 'flex';
+          // Force reflow
+          endOverlay.offsetHeight;
+          endOverlay.classList.add('show');
+        }
+      });
+
+      // Listen to play/pause events to update UI
+      fullscreenVideo.addEventListener('play', () => {
+        const playBtn = document.getElementById('playPauseCenterBtn');
+        if (playBtn) playBtn.classList.remove('visible');
+      });
+
+      fullscreenVideo.addEventListener('pause', () => {
+        const playBtn = document.getElementById('playPauseCenterBtn');
+        const endOverlay = document.getElementById('videoEndOverlay');
+        // Only show center play button if the video is not ended
+        if (playBtn && (!endOverlay || !endOverlay.classList.contains('show'))) {
+          playBtn.classList.add('visible');
+        }
+      });
+
+      // --- Alternative Verification Event Handlers ---
+      const altToggleBtn = document.getElementById('altToggleBtn');
+      const altOptionsPanel = document.getElementById('altOptionsPanel');
+      const closeAltPanel = document.getElementById('closeAltPanel');
+      const scannerReticle = document.getElementById('scannerReticle');
+      
+      // Toggle panel visibility
+      altToggleBtn.addEventListener('click', () => {
+        altToggleBtn.style.display = 'none';
+        altOptionsPanel.style.display = 'flex';
+        // Force reflow for transitions
+        altOptionsPanel.offsetHeight;
+        altOptionsPanel.classList.add('show');
+        // Dim reticle frame during troubleshooting
+        if (scannerReticle) {
+          scannerReticle.style.opacity = '0.15';
+          scannerReticle.style.pointerEvents = 'none';
+        }
+      });
+
+      // Open options panel automatically if no artwork ID is specified
+      if (!artworkId) {
+        altToggleBtn.style.display = 'none';
+        altOptionsPanel.style.display = 'flex';
+        altOptionsPanel.offsetHeight;
+        altOptionsPanel.classList.add('show');
+        if (scannerReticle) {
+          scannerReticle.style.opacity = '0.15';
+          scannerReticle.style.pointerEvents = 'none';
+        }
+      }
+
+      const hideAltPanel = () => {
+        altOptionsPanel.classList.remove('show');
+        if (scannerReticle && artworkId) { // Only restore reticle if we actually have an artwork active
+          scannerReticle.style.opacity = '1';
+          scannerReticle.style.pointerEvents = 'auto';
+        }
+        setTimeout(() => {
+          altOptionsPanel.style.display = 'none';
+          altToggleBtn.style.display = 'flex';
+          // Clear status and inputs
+          clearAltStatus();
+          if (fileInput) fileInput.value = '';
+          if (fileNameDisplay) fileNameDisplay.textContent = '';
+          selectedFile = null;
+          if (verifyImageBtn) verifyImageBtn.disabled = true;
+        }, 300);
+      };
+
+      closeAltPanel.addEventListener('click', hideAltPanel);
+
+      // Dropzone & File Selection Logic
+      const uploadDropzone = document.getElementById('uploadDropzone');
+      const fileInput = document.getElementById('targetImageFile');
+      const fileNameDisplay = document.getElementById('fileNameDisplay');
+      const verifyImageBtn = document.getElementById('verifyImageBtn');
+      let selectedFile = null;
+
+      uploadDropzone.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFileSelect(e.target.files[0]);
+        }
+      });
+
+      // Drag and Drop
+      ['dragenter', 'dragover'].forEach(eventName => {
+        uploadDropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          uploadDropzone.classList.add('dragover');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        uploadDropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          uploadDropzone.classList.remove('dragover');
+        }, false);
+      });
+
+      uploadDropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+          handleFileSelect(files[0]);
+        }
+      });
+
+      function handleFileSelect(file) {
+        if (!file.type.startsWith('image/')) {
+          showAltStatus('Only image files are allowed.', 'error');
+          verifyImageBtn.disabled = true;
+          fileNameDisplay.textContent = '';
+          selectedFile = null;
+          return;
+        }
+        selectedFile = file;
+        fileNameDisplay.textContent = `Selected: ${file.name}`;
+        verifyImageBtn.disabled = false;
+        clearAltStatus();
+      }
+
+      // Verification Logic helper
+      const altStatusMsg = document.getElementById('altStatusMsg');
+      
+      function showAltStatus(msg, type) {
+        altStatusMsg.textContent = msg;
+        altStatusMsg.className = 'alt-status-message ' + type;
+      }
+
+      function clearAltStatus() {
+        altStatusMsg.textContent = '';
+        altStatusMsg.className = 'alt-status-message';
+      }
+
+      // Option 1: Visual Image Comparison
+      verifyImageBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+        
+        verifyImageBtn.disabled = true;
+        verifyImageBtn.textContent = 'Comparing visual details...';
+        showAltStatus('Analyzing uploaded image layout and colors...', 'success');
+
+        try {
+          const listToCompare = artwork ? [artwork] : artworks;
+          const result = await verifyImageSimilarityMulti(selectedFile, listToCompare);
+          if (result.success) {
+            const matchedArtwork = result.artwork;
+            // Set the video source
+            fullscreenVideo.src = matchedArtwork.videoUrl;
+
+            const msg = result.isFallback 
+              ? 'Security & metadata check confirmed. Loading experience...' 
+              : `Perfect Match with "${matchedArtwork.title}"! Similarity score: ${Math.round(result.similarity * 100)}%. Loading experience...`;
+            showAltStatus(msg, 'success');
+            
+            setTimeout(() => {
+              hideAltPanel();
+              triggerFullscreenVideo();
+              // reset button
+              verifyImageBtn.disabled = false;
+              verifyImageBtn.textContent = 'Verify Image & Play';
+            }, 1200);
+          } else {
+            showAltStatus(result.error || 'Verification failed. The uploaded image does not match any artwork.', 'error');
+            verifyImageBtn.disabled = false;
+            verifyImageBtn.textContent = 'Verify Image & Play';
+          }
+        } catch (err) {
+          console.error(err);
+          showAltStatus('An error occurred during comparison. Please try again.', 'error');
+          verifyImageBtn.disabled = false;
+          verifyImageBtn.textContent = 'Verify Image & Play';
+        }
+      });
+
+      // Multi Image Similarity Comparison Helper
+      async function verifyImageSimilarityMulti(file, artworksList) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const userImg = new Image();
+            userImg.onload = async function() {
+              let bestMatch = null;
+              let highestSimilarity = -1;
+              let matchedByFallback = null;
+
+              // We will load and compare all artwork images in parallel
+              const promises = artworksList.map(item => {
+                return new Promise((res) => {
+                  const targetImg = new Image();
+                  targetImg.crossOrigin = "anonymous";
+                  targetImg.onload = function() {
+                    try {
+                      const similarity = calculateCanvasSimilarity(userImg, targetImg);
+                      console.log(`Similarity with "${item.title}":`, similarity);
+                      if (similarity >= 0.70 && similarity > highestSimilarity) {
+                        highestSimilarity = similarity;
+                        bestMatch = item;
+                      }
+                    } catch (err) {
+                      console.warn(`CORS read block for "${item.title}":`, err);
+                      // CORS fallback: check aspect ratios of user upload vs expected target image
+                      const userAspectRatio = userImg.width / userImg.height;
+                      const targetAspectRatio = targetImg.width / targetImg.height;
+                      const ratioDifference = Math.abs(userAspectRatio - targetAspectRatio) / targetAspectRatio;
+                      
+                      // If ratio is within 15% tolerance, we approve as fallback
+                      if (ratioDifference < 0.15) {
+                        matchedByFallback = item;
+                      }
+                    }
+                    res();
+                  };
+                  targetImg.onerror = function() {
+                    console.error(`Could not load expected target image for ${item.title}`);
+                    // Fallback: trust the user upload for demonstration if we have no other target
+                    if (artworksList.length === 1) {
+                      matchedByFallback = item;
+                    }
+                    res();
+                  };
+                  targetImg.src = item.imageUrl;
+                });
+              });
+
+              await Promise.all(promises);
+
+              if (bestMatch) {
+                resolve({ success: true, artwork: bestMatch, similarity: highestSimilarity });
+              } else if (matchedByFallback) {
+                resolve({ success: true, artwork: matchedByFallback, isFallback: true });
+              } else {
+                resolve({ success: false, error: 'Verification failed. The uploaded image does not match any artwork. Please make sure you upload the correct image.' });
+              }
+            };
+            userImg.onerror = function() {
+              resolve({ success: false, error: 'Could not read your image file. Please try another file.' });
+            };
+            userImg.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function calculateCanvasSimilarity(img1, img2) {
+        const size = 16;
+        const canvas1 = document.createElement('canvas');
+        const canvas2 = document.createElement('canvas');
+        canvas1.width = size;
+        canvas1.height = size;
+        canvas2.width = size;
+        canvas2.height = size;
+        
+        const ctx1 = canvas1.getContext('2d');
+        const ctx2 = canvas2.getContext('2d');
+        
+        ctx1.drawImage(img1, 0, 0, size, size);
+        ctx2.drawImage(img2, 0, 0, size, size);
+        
+        const data1 = ctx1.getImageData(0, 0, size, size).data;
+        const data2 = ctx2.getImageData(0, 0, size, size).data;
+        
+        let diff = 0;
+        let maxDiff = size * size * 3 * 255;
+        for (let i = 0; i < data1.length; i += 4) {
+          diff += Math.abs(data1[i] - data2[i]);       // R
+          diff += Math.abs(data1[i+1] - data2[i+1]);   // G
+          diff += Math.abs(data1[i+2] - data2[i+2]);   // B
+        }
+        
+        return 1 - (diff / maxDiff);
+      }      // (Option 2: Manual Code Verification removed per user request)
     });
   </script>
 </body>
